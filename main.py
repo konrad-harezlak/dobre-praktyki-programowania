@@ -1,7 +1,9 @@
+import re
+
 def is_palindrome(text: str) -> bool:
-    # Usuwamy spacje i zmieniamy tekst na małe litery
+
     cleaned_text = ''.join(text.split()).lower()
-    # Porównujemy tekst z jego odwrotnością
+
     return cleaned_text == cleaned_text[::-1]
 
 def fibonacci(n: int) -> int:
@@ -18,8 +20,9 @@ def fibonacci(n: int) -> int:
         return b
 
 def count_vowels(text: str) -> int:
-    vowels = "aeiouyáéíóúý"
-    return sum(1 for char in text.lower() if char in vowels)
+    vowels = "aeiouyáéíóúýąę"
+    text = text.lower()
+    return sum(1 for char in text if char in vowels)
 
 def calculate_discount(price: float, discount: float) -> float:
     if discount < 0 or discount > 1:
@@ -36,19 +39,15 @@ def flatten_list(nested_list: list) -> list:
     return flat_list
 
 
-import string
 
 
 def word_frequencies(text: str) -> dict:
-    text = text.lower()
-    translator = str.maketrans('', '', string.punctuation)
-    words = text.translate(translator).split()
-
-    frequencies = {}
+    text = re.sub(r'[^\w\s]', '', text.lower())
+    words = text.split()
+    freq = {}
     for word in words:
-        frequencies[word] = frequencies.get(word, 0) + 1
-
-    return frequencies
+        freq[word] = freq.get(word, 0) + 1
+    return freq
 
 def is_prime(n: int) -> bool:
     if n < 2:

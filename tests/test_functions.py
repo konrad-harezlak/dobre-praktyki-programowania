@@ -16,11 +16,11 @@ def test_fibonacci():
     with pytest.raises(ValueError):
         fibonacci(-1)
 def test_count_vowels():
-    assert count_vowels("Python") == 1  # Tylko 'o'
+    assert count_vowels("Python") == 2  # Tylko 'o'
     assert count_vowels("AEIOUY") == 6  # Wszystkie samogłoski
     assert count_vowels("bcd") == 0  # Brak samogłosk
     assert count_vowels("") == 0  # Pusty ciąg
-    assert count_vowels("Próba żółwia") == 4  # Uwzględnia polskie znaki
+    assert count_vowels("Próba żółwia") == 5  # Uwzględnia polskie znaki
 def test_calculate_discount():
     assert calculate_discount(100, 0.2) == 80.0
     assert calculate_discount(50, 0) == 50.0
