@@ -21,3 +21,19 @@ def test_count_vowels():
     assert count_vowels("bcd") == 0  # Brak samogłosk
     assert count_vowels("") == 0  # Pusty ciąg
     assert count_vowels("Próba żółwia") == 4  # Uwzględnia polskie znaki
+def test_calculate_discount():
+    assert calculate_discount(100, 0.2) == 80.0
+    assert calculate_discount(50, 0) == 50.0
+    assert calculate_discount(200, 1) == 0.0
+    try:
+        calculate_discount(100, -0.1)
+    except ValueError:
+        pass
+    else:
+        assert False, "Funkcja nie zgłosiła wyjątku dla zniżki < 0"
+    try:
+        calculate_discount(100, 1.5)
+    except ValueError:
+        pass
+    else:
+        assert False, "Funkcja nie zgłosiła wyjątku dla zniżki > 1"
