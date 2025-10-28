@@ -20,3 +20,8 @@ def fibonacci(n: int) -> int:
 def count_vowels(text: str) -> int:
     vowels = "aeiouyáéíóúý"
     return sum(1 for char in text.lower() if char in vowels)
+
+def calculate_discount(price: float, discount: float) -> float:
+    if discount < 0 or discount > 1:
+        raise ValueError("Discount must be between 0 and 1.")
+    return price * (1 - discount)
