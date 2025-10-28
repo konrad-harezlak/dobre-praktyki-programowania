@@ -1,3 +1,4 @@
+from main import is_palindrome, fibonacci, count_vowels, calculate_discount, flatten_list, word_frequencies, is_prime
 
 def test_is_palindrome():
     assert is_palindrome("kajak") == True

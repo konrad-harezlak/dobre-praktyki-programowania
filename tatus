@@ -1,0 +1,41 @@
+[33mcommit 80f253722a1eb0b3a5d3aa4b90ddc9ec9b61f28c[m[33m ([m[1;36mHEAD -> [m[1;32munit_tests[m[33m, [m[1;31morigin/unit_tests[m[33m)[m
+Author: konrad-harezlak <konrad.harezlakk@gmail.com>
+Date:   Tue Oct 28 14:46:18 2025 +0100
+
+    Implementacja funkcji is_prime #86c67a55h
+
+[33mcommit c72187031b25b87e99788df5710ccb3ac07efa2f[m
+Author: konrad-harezlak <konrad.harezlakk@gmail.com>
+Date:   Tue Oct 28 14:45:56 2025 +0100
+
+    Implementacja funkcji word_frequencies #86c67a55h
+
+[33mcommit 353fc82ed74c72feeb6fa0f9278df98324aca4b0[m
+Author: konrad-harezlak <konrad.harezlakk@gmail.com>
+Date:   Tue Oct 28 14:45:35 2025 +0100
+
+    Implementacja funkcji flatten_list #86c67a55h
+
+[33mcommit 6bc29f03ba3cfa5b218eb8f0d920416ae59fe5a1[m
+Author: konrad-harezlak <konrad.harezlakk@gmail.com>
+Date:   Tue Oct 28 14:45:06 2025 +0100
+
+    Implementacja funkcji calculate_discount #86c67a55h
+
+[33mcommit 0a2681c272fac768d9492357512bcd4f86b3a138[m
+Author: konrad-harezlak <konrad.harezlakk@gmail.com>
+Date:   Tue Oct 28 14:44:42 2025 +0100
+
+    Implementacja funkcji count_vowels #86c67a55h
+
+[33mcommit 708edc1c43b690cf26ab8a000361c48cc504ccc7[m
+Author: konrad-harezlak <konrad.harezlakk@gmail.com>
+Date:   Tue Oct 28 14:44:11 2025 +0100
+
+    Implementacja funkcji fibonacci #86c67a55h
+
+[33mcommit b08ccf444fbf682ddf4b1b8d9beccb3861aa2b21[m
+Author: Konrad <konrad.harezlakk@gmail.com>
+Date:   Tue Oct 28 14:32:26 2025 +0100
+
+    Implementacja funkcji is_palindrome #86c67a55h
