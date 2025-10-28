@@ -35,3 +35,20 @@ def flatten_list(nested_list: list) -> list:
             flat_list.append(item)
     return flat_list
 
+
+import string
+
+
+def word_frequencies(text: str) -> dict:
+    text = text.lower()
+    translator = str.maketrans('', '', string.punctuation)
+    words = text.translate(translator).split()
+
+    frequencies = {}
+    for word in words:
+        frequencies[word] = frequencies.get(word, 0) + 1
+
+    return frequencies
+
+
+
