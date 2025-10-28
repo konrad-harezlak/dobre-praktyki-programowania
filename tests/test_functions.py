@@ -1,3 +1,4 @@
+import pytest
 from main import is_palindrome, fibonacci, count_vowels, calculate_discount, flatten_list, word_frequencies, is_prime
 
 def test_is_palindrome():
@@ -14,3 +15,9 @@ def test_fibonacci():
     assert fibonacci(10) == 55
     with pytest.raises(ValueError):
         fibonacci(-1)
+def test_count_vowels():
+    assert count_vowels("Python") == 1  # Tylko 'o'
+    assert count_vowels("AEIOUY") == 6  # Wszystkie samogłoski
+    assert count_vowels("bcd") == 0  # Brak samogłosk
+    assert count_vowels("") == 0  # Pusty ciąg
+    assert count_vowels("Próba żółwia") == 4  # Uwzględnia polskie znaki
