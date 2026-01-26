@@ -1,10 +1,11 @@
-import csv
-import os
+# consumer.py (zmodyfikowany dla SQLite)
+
+import sqlite3
 import time
 import uuid
 from datetime import datetime
 
-QUEUE_FILE = 'tasks.csv'
+DATABASE_NAME = 'queue.db'
 STATUS_PENDING = 'pending'
 STATUS_IN_PROGRESS = 'in_progress'
 STATUS_DONE = 'done'
@@ -14,84 +15,112 @@ CHECK_INTERVAL_S = 5
 # Unikalny identyfikator tego konsumera
 CONSUMER_ID = str(uuid.uuid4())[:8]
 
-def process_task():
-    """
-    1. Odczytuje wszystkie zadania.
-    2. Znajduje pierwsze zadanie 'pending'.
-    3. Zmienia jego status na 'in_progress' i zapisuje consumer_id.
-    4. Zapisuje zmienioną listę do pliku.
-    5. Wykonuje pracę (30s sleep).
-    6. Zmienia status na 'done' i ponownie zapisuje do pliku.
-    """
-    
-    # 1. Odczyt wszystkich zadań
-    tasks = []
-    task_to_process = None
-    task_index = -1
-    
-    if not os.path.exists(QUEUE_FILE):
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] Konsumer {CONSUMER_ID}: Plik kolejki nie istnieje.")
-        return
+def setup_database():
+    """Tworzy tabelę, jeśli nie istnieje (dla pewności)."""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS tasks (
+            id INTEGER PRIMARY KEY,
+            status TEXT NOT NULL,
+            creation_time TEXT NOT NULL,
+            consumer_id TEXT
+        )
+    ''')
+    conn.commit()
+    conn.close()
 
+
+def try_to_claim_task():
+    """
+    Próbuje atomowo zająć zadanie 'pending' zmieniając status na 'in_progress'.
+    Używa transakcji, aby zapobiec jednoczesnemu przejęciu przez wielu konsumerów.
+    """
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    task_id = None
+    
     try:
-        with open(QUEUE_FILE, mode='r', newline='') as file:
-            reader = csv.reader(file)
-            header = next(reader) # Zapisanie nagłówka
+        # Zaczynamy transakcję blokującą dostęp do bazy
+        conn.isolation_level = 'EXCLUSIVE' 
+        cursor.execute('BEGIN EXCLUSIVE') 
+        
+        # 1. Znajdujemy najstarsze zadanie ze statusem 'pending'
+        cursor.execute('''
+            SELECT id FROM tasks 
+            WHERE status = ? 
+            ORDER BY creation_time ASC 
+            LIMIT 1
+        ''', (STATUS_PENDING,))
+        
+        row = cursor.fetchone()
+        
+        if row:
+            task_id = row[0]
             
-            for i, row in enumerate(reader):
-                tasks.append(row)
-                
-                # 2. Znalezienie pierwszego zadania 'pending'
-                # Kolumny: 0=id, 1=status, 2=creation_time, 3=consumer_id
-                if task_to_process is None and len(row) > 1 and row[1] == STATUS_PENDING:
-                    task_to_process = row
-                    task_index = i
-    except Exception as e:
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] Konsumer {CONSUMER_ID}: Błąd odczytu pliku: {e}")
-        return
-
-    if task_to_process:
-        task_id = task_to_process[0]
-        
-        # 3. Zmiana statusu na 'in_progress'
-        # Aktualizacja w liście 'tasks'
-        tasks[task_index][1] = STATUS_IN_PROGRESS
-        tasks[task_index][3] = CONSUMER_ID 
-        
-        # 4. Zapis zmienionej listy do pliku (zabezpieczenie: tryb 'w' nadpisuje)
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] Konsumer {CONSUMER_ID}: POBRANO zadanie ID={task_id}. Status -> {STATUS_IN_PROGRESS}")
-        
-        try:
-            with open(QUEUE_FILE, mode='w', newline='') as file:
-                writer = csv.writer(file)
-                writer.writerow(header) # Zapis nagłówka
-                writer.writerows(tasks) # Zapis zadań
-        except Exception as e:
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] Konsumer {CONSUMER_ID}: Błąd zapisu IN_PROGRESS: {e}")
-            return
+            # 2. Aktualizujemy status zadania w tej samej transakcji
+            cursor.execute('''
+                UPDATE tasks 
+                SET status = ?, consumer_id = ? 
+                WHERE id = ?
+            ''', (STATUS_IN_PROGRESS, CONSUMER_ID, task_id))
             
-        # 5. Wykonanie pracy (30s sleep)
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] Konsumer {CONSUMER_ID}: START PRACY nad zadaniem ID={task_id}. Czas: {TASK_DURATION_S}s.")
-        time.sleep(TASK_DURATION_S)
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] Konsumer {CONSUMER_ID}: KONIEC PRACY nad zadaniem ID={task_id}.")
-
-        # 6. Zmiana statusu na 'done' i ponowny zapis
-        tasks[task_index][1] = STATUS_DONE
+            # Zatwierdzamy, uwalniając blokadę.
+            conn.commit()
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] Konsumer {CONSUMER_ID}: POBRANO zadanie ID={task_id}. Status -> {STATUS_IN_PROGRESS}")
+            
+        else:
+            conn.commit() # Zwalnia blokadę, nawet jeśli nic nie znaleziono
+            
+    except sqlite3.Error as e:
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Konsumer {CONSUMER_ID}: BŁĄD przejęcia zadania: {e}")
+        conn.rollback()
+        task_id = None
         
-        try:
-            with open(QUEUE_FILE, mode='w', newline='') as file:
-                writer = csv.writer(file)
-                writer.writerow(header)
-                writer.writerows(tasks)
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] Konsumer {CONSUMER_ID}: ZAKOŃCZONO zadanie ID={task_id}. Status -> {STATUS_DONE}")
-        except Exception as e:
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] Konsumer {CONSUMER_ID}: Błąd zapisu DONE: {e}")
+    finally:
+        conn.close()
+        return task_id
+
+def finish_task(task_id):
+    """Zmienia status zadania na 'done'."""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('''
+            UPDATE tasks 
+            SET status = ? 
+            WHERE id = ? AND consumer_id = ?
+        ''', (STATUS_DONE, task_id, CONSUMER_ID))
+        
+        conn.commit()
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Konsumer {CONSUMER_ID}: ZAKOŃCZONO zadanie ID={task_id}. Status -> {STATUS_DONE}")
+        
+    except sqlite3.Error as e:
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Konsumer {CONSUMER_ID}: BŁĄD zakończenia zadania: {e}")
+        
+    finally:
+        conn.close()
 
 
 def run_consumer():
+    # Oryginalny consumer miał while True, który otaczał całą logikę
     print(f"Konsumer {CONSUMER_ID} uruchomiony. Sprawdzanie co {CHECK_INTERVAL_S}s.")
+    
+    setup_database() # Upewnienie się, że jest gdzie pisać
+
     while True:
-        process_task()
+        task_id = try_to_claim_task()
+        
+        if task_id:
+            # Wykonanie pracy (30s sleep) - TO JEST OSTATNIA CZĘŚĆ LOGIKI Z PLIKÓW
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] Konsumer {CONSUMER_ID}: START PRACY nad zadaniem ID={task_id}. Czas: {TASK_DURATION_S}s.")
+            time.sleep(TASK_DURATION_S)
+            print(f"[{datetime.now().strftime('%H:%M:%M')}] Konsumer {CONSUMER_ID}: KONIEC PRACY nad zadaniem ID={task_id}.")
+            
+            # Zmiana statusu na 'done'
+            finish_task(task_id)
+            
         time.sleep(CHECK_INTERVAL_S)
 
 if __name__ == "__main__":

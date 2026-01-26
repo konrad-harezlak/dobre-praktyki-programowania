@@ -1,60 +1,55 @@
-import csv
+
+import sqlite3
 import os
-import time
 from datetime import datetime
 
-QUEUE_FILE = 'tasks.csv'
+DATABASE_NAME = 'queue.db'
 STATUS_PENDING = 'pending'
 
-def get_next_id():
-    """Zwraca unikalny ID dla nowego zadania, czytając ostatni ID z pliku."""
-    if not os.path.exists(QUEUE_FILE):
-        return 1
+def setup_database():
+    """Tworzy bazę danych i tabelę, jeśli nie istnieją."""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
     
-    with open(QUEUE_FILE, mode='r', newline='') as file:
-        reader = csv.reader(file)
-        # Omijanie nagłówka
-        try:
-            next(reader) 
-        except StopIteration:
-            return 1 # Pusty plik
+    # Tworzenie tabeli
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS tasks (
+            id INTEGER PRIMARY KEY,
+            status TEXT NOT NULL,
+            creation_time TEXT NOT NULL,
+            consumer_id TEXT
+        )
+    ''')
+    conn.commit()
+    conn.close()
 
-        last_id = 0
-        for row in reader:
-            try:
-                # Oczekujemy ID w pierwszej kolumnie
-                last_id = max(last_id, int(row[0])) 
-            except (ValueError, IndexError):
-                # Ignoruj źle sformatowane wiersze
-                continue
-        return last_id + 1
-
+# W oryginalnym producerze była funkcja get_next_id, 
+# ale SQLite załatwia to automatycznie. Zostawiamy tylko add_task_to_queue.
 
 def add_task_to_queue():
-    """Dodaje nowe zadanie do pliku-kolejki."""
-    task_id = get_next_id()
+    """Dodaje nowe zadanie do kolejki w bazie SQLite."""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
     
-    # Dane nowego zadania
-    new_task = [
-        task_id,
-        STATUS_PENDING,
-        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        '' # Miejsce na consumer_id
-    ]
-
-    # Nagłówek - tylko jeśli plik nie istnieje lub jest pusty
-    file_exists = os.path.exists(QUEUE_FILE)
-    write_header = not file_exists or os.path.getsize(QUEUE_FILE) == 0
-
-    with open(QUEUE_FILE, mode='a', newline='') as file:
-        writer = csv.writer(file)
+    creation_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    try:
+        # Wstawienie zadania - ID jest automatyczne (PRIMARY KEY)
+        cursor.execute('''
+            INSERT INTO tasks (status, creation_time, consumer_id) 
+            VALUES (?, ?, ?)
+        ''', (STATUS_PENDING, creation_time, None))
         
-        if write_header:
-            writer.writerow(['id', 'status', 'creation_time', 'consumer_id'])
-            
-        writer.writerow(new_task)
+        task_id = cursor.lastrowid
+        conn.commit()
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] ZADANIE DODANE: ID={task_id}, Status={STATUS_PENDING}")
         
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] ZADANIE DODANE: ID={task_id}, Status={STATUS_PENDING}")
+    except sqlite3.Error as e:
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] BŁĄD PRODUCERA: {e}")
+        
+    finally:
+        conn.close()
 
 if __name__ == "__main__":
+    setup_database() # Musi być wywołane, żeby utworzyć tabelę
     add_task_to_queue()
